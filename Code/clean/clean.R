@@ -9,6 +9,8 @@
 
 uc_raw <- read_csv(paste(rawdatdir,"/uc_daily.csv", sep = ""), skip = 9)
 
+### 1.1 Daily
+
 # clean
 uc <- uc_raw %>% filter(`Time Period (III)` == "Total") # keep only totals
 uc <- gather(uc, key = "date", value = "uc_claims") # reshape to long
@@ -30,6 +32,68 @@ uc <- uc %>%  mutate(day = wday(date, label = TRUE),
 
 # Export daily data
 saveRDS(uc, paste(datdir,"/uc_daily_clean.Rds", sep = ""))
+
+# work out what proportion of claims in a 7-day period would typically fall on the Monday and Tuesday
+uc_calcs <- uc
+uc_calcs <- uc_calcs %>% filter(year >= 2016)
+
+# now keep from first Monday
+uc_calcs <- uc_calcs[4:dim(uc_calcs)[1],1:dim(uc_calcs)[2]]
+nums <- c(0,seq(length = (dim(uc_calcs)[1]-1)))
+nums <- floor(nums/7)
+uc_calcs$nums <- nums
+uc_calcs <- uc_calcs %>% group_by(nums) %>%
+  mutate(week_end = max(date))
+uc_calcs$montue = 0
+uc_calcs$montue[which(uc_calcs$day == "Mon" | uc_calcs$day == "Tue")] = 1
+uc_calcs <- uc_calcs %>% group_by(montue) %>%
+  summarise(uc_claims = sum(uc_claims)) %>%
+  mutate(uc_claims_pct = uc_claims/sum(uc_claims))
+uc_calcs
+
+# this looks like around 40% of weekly claims are on monday / tuesday
+# so in a 9 day period starting monday, 2/7 claims are made on one monday / tuesday.
+# so in general, a 7 day period starting on a wednesday is 5/7 of the 9 day period two days earlier.
+
+### 1.2 Weekly
+
+# Construct weekly data
+# get this on a Wed-Tuesday basis
+# First keep anything after 2016
+uc <- uc %>% filter(date != "2020-03-24")
+uc_weekly <- uc %>% filter(year >= 2016)
+
+# now keep from first Wednesday
+uc_weekly <- uc_weekly[6:dim(uc_weekly)[1],1:dim(uc_weekly)[2]]
+
+# need to get previous year claims on similar dates.
+# minimum estimate will assume that 16th and 17th had same rates as equivalent mon / tues from previous year
+prevyearmon <- uc_weekly$uc_claims[which(uc_weekly$date == "2019-03-18")]
+prevyeartue <- uc_weekly$uc_claims[which(uc_weekly$date == "2019-03-19")]
+
+# assign week ID
+nums <- c(0,seq(length = (dim(uc_weekly)[1]-1)))
+nums <- floor(nums/7)
+uc_weekly$nums <- nums
+uc_weekly <- uc_weekly %>% group_by(nums) %>%
+  mutate(week_end = max(date))
+uc_weekly <- uc_weekly %>% group_by(nums) %>%
+  summarise(uc_claims = sum(uc_claims),
+            week_end = max(week_end)) %>% 
+  select(-nums)
+
+# find range of potential weekly claims based on statement of 477000 over 9 day period
+min_claims <- 477000*(5/7) # this uses previous calculations to take off what we think the first Mon / Tues would have been, if spread is as in previous periods.
+max_claims <- 477000 - prevyearmon - prevyeartue # this assumes the first 2 days are equal to previous year equivalent dates
+
+# add in indicator for real / estimated data
+uc_weekly <- uc_weekly %>% mutate(type = "real")
+
+# add in data point for week ending Tuesday 24th
+uc_weekly <- add_row(uc_weekly, week_end = "2020-03-24", uc_claims = min_claims, type = "min")
+uc_weekly <- add_row(uc_weekly, week_end = "2020-03-24", uc_claims = max_claims, type = "max")
+
+saveRDS(uc_weekly, paste(datdir,"/uc_weekly_clean.Rds", sep = ""))
 
 ### 2. Verify signups
 

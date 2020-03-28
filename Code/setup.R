@@ -20,3 +20,4 @@ library(tidyverse) # all tidyverse packages (dplyr,tidyr,readr,ggplot2)
 library(lubridate) # for dealing with dates
 #library(rlist) # convenient list manipulations
 #library(stringdist) # string distance metric
+library(scales)
