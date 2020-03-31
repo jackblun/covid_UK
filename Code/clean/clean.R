@@ -119,3 +119,15 @@ gtrends <- gtrends %>%  mutate(day = wday(week, label = TRUE),
 
 # Export
 saveRDS(gtrends, paste(datdir,"/googletrends_clean.Rds", sep = ""))
+
+### 4. News mentions
+
+news_raw <- read_csv(paste(rawdatdir,"/newsbank/31-Mar-2020 (11_03).csv", sep = ""))
+
+news_clean <- news_raw %>% spread(Search, Hits) %>%
+  mutate(date = mdy(Date),
+         covid_pct = 100*`Coronavirus/Corona/Covid`/All) %>%
+  select(-Date, -All, - `Coronavirus/Corona/Covid`)
+
+# Export
+saveRDS(news_clean, paste(datdir,"/news_clean.Rds", sep = ""))
