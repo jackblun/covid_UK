@@ -95,6 +95,27 @@ uc_weekly <- add_row(uc_weekly, week_end = "2020-03-24", uc_claims = max_claims,
 
 saveRDS(uc_weekly, paste(datdir,"/uc_weekly_clean.Rds", sep = ""))
 
+### 1.3 Fortnightly
+
+
+# First keep anything after 2016
+uc_2weekly <- uc %>% filter(date != "2020-03-24", year >= 2016, year < 2020)
+
+# assign fortnight ID
+uc_2weekly <- uc_2weekly %>% mutate(month_section = if_else(day(date) <= 15,1,2)) %>%
+  mutate(month = month(date)) %>%
+  group_by(year,month, month_section) %>%
+  summarise(date = max(date),
+            uc_claims = sum(uc_claims)) %>%
+  select(date, uc_claims) %>%
+  ungroup()
+
+# add 950,000 data
+uc_2weekly <- add_row(uc_2weekly, date = "2020-03-31", uc_claims = 950000)
+
+saveRDS(uc_2weekly, paste(datdir,"/uc_2weekly_clean.Rds", sep = ""))
+
+
 ### 2. Verify signups
 
 v_raw <- read_csv(paste(rawdatdir,"/verify_signups.csv", sep = ""))
@@ -122,12 +143,35 @@ saveRDS(gtrends, paste(datdir,"/googletrends_clean.Rds", sep = ""))
 
 ### 4. News mentions
 
+### 4.1 corona
+
 news_raw <- read_csv(paste(rawdatdir,"/newsbank/31-Mar-2020 (11_03).csv", sep = ""))
 
 news_clean <- news_raw %>% spread(Search, Hits) %>%
   mutate(date = mdy(Date),
          covid_pct = 100*`Coronavirus/Corona/Covid`/All) %>%
+  select(-Date, - `Coronavirus/Corona/Covid`)
+
+### 4.2 Brexit
+
+news_brexit_raw <- read_csv(paste(rawdatdir,"/newsbank/01-Apr-2020 (08_17).csv", sep = ""))
+
+news_brexit_clean <- news_brexit_raw %>% spread(Search, Hits) %>%
+  mutate(date = mdy(Date))
+
+# combine with previous searches
+news_clean <- left_join(news_clean, news_brexit_clean)
+news_clean <- news_clean %>% mutate(brexit_pct = 100*`Brexit`/All) %>%
+  select(-All, - Brexit, -Date)
+
+# Export
+saveRDS(news_clean, paste(datdir,"/news_clean.Rds", sep = ""))
+
+
+,
+         bre_pct = 100*`Coronavirus/Corona/Covid`/All) %>%
   select(-Date, -All, - `Coronavirus/Corona/Covid`)
 
 # Export
 saveRDS(news_clean, paste(datdir,"/news_clean.Rds", sep = ""))
+

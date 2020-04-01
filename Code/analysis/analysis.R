@@ -73,6 +73,42 @@ ggsave("uc_claims_weekly.png", width = 12, height = 6.8)
 
 uc %>% arrange(-uc_claims)
 
+# Now try 2weekly claims
+
+# Load cleaned data
+uc_2weekly <- readRDS(paste(datdir,"/uc_2weekly_clean.Rds", sep = ""))
+
+# Check distribution of claims
+
+ggplot(data = uc_2weekly, mapping = aes(x = uc_claims)) +
+  geom_histogram()
+
+# Make time series plot
+
+ggplot(data = uc_2weekly, mapping = aes(x = date, y = uc_claims)) + 
+  geom_col(width = 12, fill = "darkorange2", alpha = 0.9) +
+  theme_light() + xlab("") + ylab("Universal Credit claims (bi-monthly)") +
+  theme(axis.text.x = element_text(color = "black", size = 10),
+        axis.text.y = element_text(color = "black", size = 10, angle = 45),
+        plot.caption = element_text(hjust = 0, size = 10)) +
+  scale_y_continuous(breaks = seq(0,1100000,200000), limits = c(0,1000000), labels = comma) +
+  annotate(geom = "text", x = dmy("01/9/2019"), y = 950000, label = c("950,000 claims"),
+           color = "darkorange2", size = 5, fontface = "bold") +
+  annotate(geom = "text", x = dmy("01/9/2019"), y = 900000, label = c("16th - 31st March 2020"),
+           color = "darkorange2", size = 5) + 
+  labs(caption = "Notes: Universal Credit claims, divided into 1st-15th and 16th-end of month.
+Sources: DWP website (accessed 27/3/20), DWP statement 1/4/2020.
+Jack Blundell (Stanford / CEP(LSE))")
+ggsave("uc_claims_2weekly.png", width = 12, height = 6.8)
+
+# find out previous max
+uc_2weekly %>% arrange(-uc_claims)
+
+# calculate % change from average
+uc_2weekly %>% filter(year == 2019) %>%
+  summarise(uc_claims = mean(uc_claims))
+(950000 - 120172)/120172
+
 ### 2. Signups for verify service
 
 # Load cleaned data
@@ -125,6 +161,8 @@ ggsave("googletrends.png", width = 12, height = 6.8)
 
 ### 4. News mentions
 
+### 4.1 Corona on its own
+
 news_clean <- readRDS(paste(datdir,"/news_clean.Rds", sep = ""))
 
 ggplot() +
@@ -156,4 +194,15 @@ ggplot() +
 Source: 483 UK national and local news sources (accessed via AWN Newsbank 31/3/2020).
 Jack Blundell (Stanford / CEP(LSE))")
 ggsave("newsbank.png", width = 12, height = 6.8)
-  
+
+### 4.2 Brexit + Corona on its own
+
+news_clean <- readRDS(paste(datdir,"/news_clean.Rds", sep = ""))
+
+ggplot(data = news_clean %>% mutate(pct100 = 100) 
+       %>% filter(date >= dmy("1/1/20"))) +
+  geom_area(mapping = aes(y = brexit_pct, x = date), fill = "dodgerblue1", alpha = 0.6) +
+  geom_area(data = news_clean %>% 
+              filter(date >= dmy("1/1/20")), 
+            mapping = aes(y = covid_pct, x = date), fill = "darkorange1", alpha = 0.6) +
+  ylab("% Articles") + xlab("") + theme_light()
